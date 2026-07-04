@@ -1,5 +1,7 @@
 # SchemaAdapt-AI: Auto-Healing API Gateway
 
+![SchemaAdapt-AI System Flow](gateway_flow_infographic.jpg)
+
 An intelligent API gateway built using **Google ADK 2.0** and a local **IBM DataPower** service. 
 
 This gateway automatically fixes issues when incoming data does not match the expected structure. For example, if an external system starts sending text instead of numbers, or adds new unexpected fields, this system will automatically analyze the changes, rewrite the rules, run checks, and update itself after your approval.
