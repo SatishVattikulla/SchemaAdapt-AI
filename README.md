@@ -1,64 +1,63 @@
-# SchemaAdapt-AI: Self-Healing Integration Gateway
+# SchemaAdapt-AI: Auto-Healing API Gateway
 
-A stateful, self-healing API gateway architecture layer built on **Google ADK 2.0 (Agent Development Kit)** and a local **IBM DataPower** developer instance. 
+An intelligent API gateway built using **Google ADK 2.0** and a local **IBM DataPower** service. 
 
-The gateway dynamically intercepts transaction execution faults caused by upstream data type drift (destructive changes) or undocumented payloads (additive variations), infers types via JavaScript reflection, generates schema adaptation patches using Gemini 2.5 Flash, runs compliance and syntax scanners, and hot-swaps the gateway adapter configurations live after a Human-in-the-Loop staging check.
+This gateway automatically fixes issues when incoming data does not match the expected structure. For example, if an external system starts sending text instead of numbers, or adds new unexpected fields, this system will automatically analyze the changes, rewrite the rules, run checks, and update itself after your approval.
 
 ---
 
-## 1. System Topology & Architecture
+## 1. How It Works
 
-The orchestration engine implements a state-graph loop running across 5 key nodes:
+The system operates in a continuous loop through 5 simple steps:
 
 ```mermaid
 graph TD
-    START([START]) --> Node1[Node 1: Telemetry Ingest]
-    Node1 --> Node2[Node 2: Schema Optimizer]
-    Node2 --> Node3[Node 3: Stride Scanner]
-    Node3 -- PASSED --> Node4[Node 4: Triage Gate]
-    Node3 -- FAILED & loop < 3 --> Node2
-    Node3 -- CIRCUIT_BREAKER --> Node4
-    Node4 -- APPROVED --> Node5[Node 5: Hot-Swap Engine]
-    Node4 -- REJECTED --> Node2
-    Node5 --> END([END])
+    START([START]) --> Step1[1. Monitor Logs]
+    Step1 --> Step2[2. Auto-Fix Code]
+    Step2 --> Step3[3. Run Checks]
+    Step3 -- PASSED --> Step4[4. Approve Changes]
+    Step3 -- FAILED --> Step2
+    Step4 -- APPROVED --> Step5[5. Deploy Fix]
+    Step4 -- REJECTED --> Step2
+    Step5 --> END([END])
 ```
 
-- **Node 1: Ingest & Telemetry Capture**: Monitors DataPower docker logs to intercept type collisions (e.g. `ERR_VAL_9988`) or additive field expansion faults.
-- **Node 2: Adaptive Schema Optimizer**: Invokes Gemini 2.5 Flash with strict JSON schema specs to rebuild the processing code.
-- **Node 3: Stride Verification Scanner**: Checks patch syntax using `node --check` and scans imports for security threat vectors (`child_process`, `fs`).
-- **Node 4: Human-in-the-Loop Triage**: Visualizes the changes via a Git-style unified diff change manifest and pauses for engineering approval.
-- **Node 5: Gateway Hot-Swap Engine**: Replaces the production script (`local/transform.js`) and validates connection stability via cURL (expecting `200 OK`).
+1. **Monitor Logs**: The system watches the API gateway logs. If a request crashes due to mismatched data types or unexpected new fields, it captures the error and the problematic data.
+2. **Auto-Fix Code**: It asks Gemini to analyze the error and update the JavaScript processing script to support the new format without losing old data.
+3. **Run Checks**: It scans the updated code to ensure it has no syntax errors and complies with security standards (blocking unsafe modules).
+4. **Approve Changes (Triage)**: It shows you a visual comparison (Git diff) of what will change and pauses for your approval.
+5. **Deploy Fix**: Once approved, it copies the new script to the running gateway and fires a test request to confirm everything is fixed.
 
 ---
 
-## 2. Directory Structure
+## 2. Project Folder Structure
 
 ```text
 SchemaAdapt-AI/
 ├── config/
-│   └── auto-startup.cfg      # DataPower WebGUI and Loopback XML Firewall CLI config
+│   └── auto-startup.cfg      # Gateway and portal configuration commands
 ├── local/
-│   └── transform.js          # Production GatewayScript transforming adapter
+│   └── transform.js          # The active JavaScript processing rules
 ├── patches/
-│   ├── staging_patch.js      # Staging area for generated adaptation patches
-│   └── change_manifest.md    # Generated Git-style diff manifest for triage
-├── graph_engine.py           # Core orchestrator and state engine
-├── mcp_server.py             # FastMCP host server exposing file/verification tools
-├── pyproject.toml            # Workspace metadata and python dependencies
-└── README.md                 # Project documentation
+│   ├── staging_patch.js      # Staging area for new updates
+│   └── change_manifest.md    # Code changes comparison sheet
+├── graph_engine.py           # Core orchestrator running the loop
+├── mcp_server.py             # File scanner and testing tools
+├── pyproject.toml            # Python package manager
+└── README.md                 # Project guide
 ```
 
 ---
 
-## 3. Deployment & Local Verification
+## 3. Local Setup & Testing
 
 ### Prerequisites
-- Python 3.11+ with `uv`
+- Python 3.11+
 - Docker Desktop
-- Node.js (for syntax validation check)
+- Node.js (for checking code syntax)
 
-### Step 1: Spin up IBM DataPower Container
-Ensure the developer container is deployed with correct port mappings (9090 for WebGUI, 8000 for the gateway) and volume mappings:
+### Step 1: Start the API Gateway
+Run the DataPower gateway container with ports mapped:
 ```bash
 docker run -d --name datapower-gateway \
   -e DATAPOWER_ACCEPT_LICENSE=true \
@@ -68,16 +67,16 @@ docker run -d --name datapower-gateway \
   icr.io/cpopen/datapower/datapower-limited:10.6.0.0
 ```
 
-### Step 2: Initialize Workspace & Run Orchestrator
-Install dependencies and launch the state graph engine:
+### Step 2: Start the Orchestrator
+Install packages and start the monitoring script:
 ```bash
 uv sync
 uv run python graph_engine.py
 ```
 
-### Step 3: Trigger a Schema Drift Fault
-To test the pipeline, fire an invalid payload to the gateway (e.g. sending `id` as a string instead of a number):
+### Step 3: Trigger a Failure
+Send a mismatched payload (sending text `"ERR_VAL_9988"` where a number is expected):
 ```bash
 curl.exe -v -H "Content-Type: application/json" -d "{\"id\": \"ERR_VAL_9988\", \"name\": \"Alice\"}" http://localhost:8000/
 ```
-The gateway will return a `400 Bad Request`. The orchestrator will immediately detect the log event, optimize the code, output a visual diff, and wait for your input (`APPROVE` / `REJECT`) to hot-swap and heal the gateway.
+The gateway will reject it with a `400 Bad Request`. The orchestrator will automatically intercept this error, generate the fix, show you the proposed changes, and wait for you to type **APPROVE** to apply the fix live.
