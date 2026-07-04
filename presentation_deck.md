@@ -137,14 +137,20 @@ The baseline gateway would immediately reject this payload with:
 
 ---
 
-## 6. Execution Statistics & Key Performance Metrics
+## 6. Core Concepts: ADK, MCP & Orchestration Design
 
-### Key Performance Metrics
-- **Log Detection Latency (Node 1)**: `< 500 ms` (Real-time tailing of DataPower docker logs).
-- **Inference & Patch Generation Latency (Node 2)**: `~1.8 - 2.5 seconds` (Utilizing Gemini 2.5 Flash).
-- **Automated Syntax & Compliance Scan Latency (Node 3)**: `< 350 ms` (Runs local `node --check` and AST threat compliance filters).
-- **Hot-Swap & Compilation Performance**:
-  - Script update is instantaneous. DataPower loads the file dynamically.
-  - GatewayScript transaction execution overhead is sub-millisecond, with a runtime time complexity of $O(N)$ (linear scanning of incoming payload keys).
+### Google ADK 2.0 (Agent Development Kit)
+- **What it is**: Google's developer framework designed to model complex autonomous tasks as state machines, state graphs, and structured memory threads.
+- **Role in SchemaAdapt-AI**: Powers the core graph loop (`graph_engine.py`). It structures execution into explicit nodes, handles memory propagation (e.g. tracking the poison payload and token usage), and implements conditional routers to recover from syntax/security scanner failures.
+
+### Model Context Protocol (MCP)
+- **What it is**: An open standard protocol created to securely and dynamically expose local resources, files, and terminal utilities as tools that LLMs can invoke.
+- **Role in SchemaAdapt-AI**: Decouples tool execution from orchestrator logic. The FastMCP tool server (`mcp_server.py`) hosts verification cURLs, Node.js syntax checkers, and security sweeps, providing them to the AI agent as a set of structured API tool schemas.
+
+### Orchestration Design & Lifecycle Concepts
+1. **Telemetry Tailing**: Node 1 monitors the DataPower stdout log buffer. It captures transaction faults in real time without polling files or hitting API endpoints.
+2. **Backward-Compatible Schema Synthesis**: Instead of rewriting the static schema rules, the AI optimizer uses JavaScript reflection (`Object.keys()`) to dynamically inspect keys and allow permissive types, preserving the old fields while accepting new structures.
+3. **AST-Based Compliance Sweeps**: Node 3 implements a security sweep, preventing command injection or system reads (e.g. blocking imports of Node's `child_process` or `fs`).
+4. **Human Governance Gate**: A visual unified git-diff and approval stage (Node 4) guarantees that no code is promoted to the production DataPower gateway without engineer triage.
 
 
