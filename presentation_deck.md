@@ -90,17 +90,35 @@ sequenceDiagram
 
 ## 5. Case Study: Resolving the Mismatched Field Fault
 
-### The Fault (Type Collision)
-The baseline gateway expected `id` to be a `number`.
-An external client sent a payload containing a string:
+### Runtime Schema Evolution Example
+
+#### Original Contract
 ```json
 {
-  "id": "ERR_VAL_9988",
-  "name": "Alice"
+  "storeId": 120,
+  "transactionId": 456789,
+  "productId": 101,
+  "quantity": 2
 }
 ```
-The gateway crashed the transaction, outputting:
-`TRANSACTION_FAILED: type collision for field 'id', expected number, got string`
+
+#### Incoming Runtime Payload (Type Collision & Additive Field Drift)
+```json
+{
+  "storeId": "STORE_120",
+  "transactionId": "TXN-456789",
+  "productId": "SKU-101",
+  "quantity": 2,
+  "discountCode": "SUMMER25"
+}
+```
+
+This scenario highlights two simultaneous schema drifts:
+1. **Type Collision**: `storeId`, `transactionId`, and `productId` changed from numbers to alphanumeric strings.
+2. **Additive Field Drift**: A new field `discountCode` was added without being registered.
+
+The baseline gateway would immediately reject this payload with:
+`TRANSACTION_FAILED: type collision for field 'storeId', expected number, got string`
 
 ### The Autonomous Healing Action
 1. The Orchestrator captured the failure.
